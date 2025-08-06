@@ -105,10 +105,11 @@ const VerifyNews = () => {
   };
 
   const handleVerification = async () => {
-    if (!description.trim() && !selectedImage) {
+    // Allow verification even with minimal content
+    if (!description.trim() && !selectedImage && !url.trim()) {
       toast({
         title: "Erro",
-        description: "Por favor, insira uma descrição ou selecione uma imagem para verificar.",
+        description: "Por favor, insira texto, URL ou selecione uma imagem para verificar.",
         variant: "destructive"
       });
       return;
@@ -117,9 +118,13 @@ const VerifyNews = () => {
     setIsLoading(true);
     
     try {
+      // Prepare content for analysis
+      const contentToAnalyze = description?.trim() || '';
+      const urlToAnalyze = url?.trim() || '';
+      
       const requestBody: any = {
-        content: description || "Análise de imagem enviada",
-        url: url.trim() || undefined
+        content: contentToAnalyze || (selectedImage ? "Análise de imagem fornecida pelo usuário" : ""),
+        url: urlToAnalyze || undefined
       };
 
       if (selectedImage) {
@@ -127,9 +132,10 @@ const VerifyNews = () => {
       }
 
       console.log('Tentando verificar informação...', { 
-        hasContent: !!requestBody.content, 
-        hasUrl: !!requestBody.url,
-        hasImage: !!selectedImage 
+        contentLength: contentToAnalyze.length,
+        hasUrl: !!urlToAnalyze,
+        hasImage: !!selectedImage,
+        actualContent: contentToAnalyze.substring(0, 50) + '...'
       });
 
       const { data, error } = await supabase.functions.invoke('verify-news', {

@@ -55,53 +55,94 @@ serve(async (req) => {
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
     
     console.log('Parsing request body...');
-    const requestBody = await req.json();
-    console.log('Request body received:', Object.keys(requestBody));
+    
+    // Handle different content types properly
+    let requestBody;
+    const contentType = req.headers.get('content-type') || '';
+    
+    if (contentType.includes('multipart/form-data')) {
+      // Handle form data with files
+      const formData = await req.formData();
+      requestBody = {
+        content: formData.get('content') as string || '',
+        url: formData.get('url') as string || '',
+        imageFile: formData.get('imageFile') as File || null
+      };
+    } else {
+      // Handle JSON data
+      requestBody = await req.json();
+    }
+    
+    console.log('Request body received:', {
+      hasContent: !!requestBody.content,
+      hasUrl: !!requestBody.url,
+      hasImageFile: !!requestBody.imageFile,
+      contentLength: requestBody.content?.length || 0
+    });
     
     const { content, url, imageFile }: VerificationRequest = requestBody;
 
-    if (!content || content.trim().length === 0) {
-      console.error('No content provided in request');
+    // Allow processing even without content if there's an image or URL
+    if (!content && !url && !imageFile) {
+      console.error('No content, URL, or image provided');
       return new Response(JSON.stringify({ 
         success: false, 
-        error: 'Conteúdo não fornecido' 
+        error: 'Por favor, forneça texto, URL ou imagem para verificar' 
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    console.log('Starting news verification for:', content.substring(0, 100) + '...');
+    console.log('Starting news verification for:', content ? content.substring(0, 100) + '...' : 'URL/Image analysis');
 
-    // Build comprehensive prompt for analysis
+    // Build comprehensive prompt for analysis based on available data
+    let analysisContent = '';
+    if (content && content.trim()) {
+      analysisContent += `TEXTO/CONTEÚDO: ${content.trim()}`;
+    }
+    if (url && url.trim()) {
+      analysisContent += `\nURL: ${url.trim()}`;
+    }
+    if (imageFile) {
+      analysisContent += `\nIMAGEM: Análise de imagem fornecida pelo usuário`;
+    }
+
+    // If no meaningful content, provide fallback
+    if (!analysisContent.trim()) {
+      analysisContent = 'Conteúdo muito curto ou indefinido fornecido para análise';
+    }
+
     const analysisPrompt = `
-Você é um verificador de fatos profissional. Analise a seguinte informação e forneça uma verificação completa:
+Você é um verificador de fatos profissional brasileiro. Analise a seguinte informação e forneça uma verificação completa:
 
 INFORMAÇÃO A VERIFICAR:
-${content}
-${url ? `URL: ${url}` : ''}
+${analysisContent}
 
-INSTRUÇÕES:
-1. Verifique a credibilidade consultando fontes confiáveis como G1, New York Times, UOL, BBC, Reuters
-2. Classifique como: VERDADEIRA, FALSA ou DUVIDOSA
-3. Dê uma pontuação de 0-100 para veracidade
-4. Forneça explicação detalhada e profissional
-5. Liste critérios analisados (presença em fontes, consistência, linguagem, etc.)
-6. Identifique possíveis fontes que confirmam ou refutam
+INSTRUÇÕES IMPORTANTES:
+1. Se o conteúdo for muito vago ou indefinido (como letras aleatórias), classifique como DUVIDOSA
+2. Para URLs, analise o domínio e credibilidade da fonte
+3. Para imagens, indique que análise visual não está totalmente disponível
+4. Verifique credibilidade consultando fontes confiáveis brasileiras: G1, UOL, Folha, Estadão, BBC Brasil
+5. Classifique como: VERDADEIRA (verified), FALSA (false) ou DUVIDOSA (partial)
+6. Dê uma pontuação de 0-100 para veracidade
+7. Forneça explicação detalhada e profissional em português
+8. Liste critérios analisados
+9. Identifique fontes relevantes
 
-Responda em JSON com esta estrutura:
+IMPORTANTE: Responda APENAS em JSON válido com esta estrutura exata:
 {
   "classification": "verified|false|partial",
-  "score": 85,
-  "explanation": "Explicação detalhada profissional",
+  "score": 50,
+  "explanation": "Explicação detalhada profissional em português",
   "criteria": [
-    {"name": "Presença em fontes confiáveis", "status": true},
-    {"name": "Consistência com dados oficiais", "status": true},
-    {"name": "Linguagem alarmista detectada", "status": false}
+    {"name": "Clareza do conteúdo", "status": true},
+    {"name": "Presença em fontes confiáveis", "status": false},
+    {"name": "Consistência com dados oficiais", "status": false}
   ],
   "sources": [
-    {"name": "G1", "url": "link", "verified": true},
-    {"name": "UOL", "url": "link", "verified": false}
+    {"name": "G1", "url": "https://g1.globo.com", "verified": false},
+    {"name": "UOL", "url": "https://uol.com.br", "verified": false}
   ]
 }`;
 
