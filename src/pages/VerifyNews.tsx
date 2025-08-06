@@ -126,29 +126,78 @@ const VerifyNews = () => {
         requestBody.imageFile = selectedImage;
       }
 
+      console.log('Tentando verificar informação...', { 
+        hasContent: !!requestBody.content, 
+        hasUrl: !!requestBody.url,
+        hasImage: !!selectedImage 
+      });
+
       const { data, error } = await supabase.functions.invoke('verify-news', {
         body: requestBody
       });
 
+      console.log('Resposta da função edge:', { data, error });
+
       if (error) {
+        console.error('Erro na função edge:', error);
+        // Fallback para quando a função edge não está disponível
+        if (error.message?.includes('Function not found') || error.message?.includes('404')) {
+          setResult({
+            classification: 'partial',
+            score: 50,
+            explanation: 'Serviço de verificação temporariamente indisponível. Por favor, verifique manualmente em fontes confiáveis como G1, UOL, BBC ou outros veículos de comunicação reconhecidos.',
+            criteria: [
+              { name: 'Verificação manual recomendada', status: true },
+              { name: 'Consulte fontes oficiais', status: true }
+            ],
+            sources: [
+              { name: 'G1', url: 'https://g1.globo.com', verified: false },
+              { name: 'UOL', url: 'https://uol.com.br', verified: false },
+              { name: 'BBC Brasil', url: 'https://bbc.com/portuguese', verified: false }
+            ]
+          });
+          toast({
+            title: "Verificação Manual",
+            description: "Sistema temporariamente indisponível. Consulte as fontes sugeridas.",
+            variant: "default"
+          });
+          return;
+        }
         throw new Error(error.message);
       }
 
-      if (data.success) {
+      if (data?.success) {
         setResult(data.verification);
         toast({
           title: "Verificação Concluída",
           description: "A análise foi processada com sucesso.",
         });
       } else {
-        throw new Error(data.error || 'Erro na verificação');
+        throw new Error(data?.error || 'Erro na verificação');
       }
     } catch (error) {
       console.error('Error during verification:', error);
+      
+      // Fallback para qualquer erro inesperado
+      setResult({
+        classification: 'partial',
+        score: 50,
+        explanation: 'Não foi possível verificar automaticamente esta informação. Recomendamos verificar manualmente em fontes confiáveis como grandes veículos de comunicação (G1, UOL, BBC) e sites governamentais oficiais.',
+        criteria: [
+          { name: 'Verificação automática falhou', status: false },
+          { name: 'Verificação manual necessária', status: true }
+        ],
+        sources: [
+          { name: 'G1', url: 'https://g1.globo.com', verified: false },
+          { name: 'UOL', url: 'https://uol.com.br', verified: false },
+          { name: 'BBC Brasil', url: 'https://bbc.com/portuguese', verified: false }
+        ]
+      });
+      
       toast({
-        title: "Erro",
-        description: "Erro ao verificar a informação. Tente novamente.",
-        variant: "destructive"
+        title: "Verificação Manual",
+        description: "Sistema indisponível. Consulte as fontes confiáveis listadas.",
+        variant: "default"
       });
     } finally {
       setIsLoading(false);
