@@ -120,9 +120,10 @@ Responda em JSON com esta estrutura:
         }],
         generationConfig: {
           temperature: 0.1,
-          topK: 1,
+          topK: 32,
           topP: 1,
           maxOutputTokens: 2048,
+          responseMimeType: "application/json"
         }
       })
     });
