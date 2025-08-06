@@ -11,7 +11,7 @@ const Footer = () => {
             <span className="text-sm font-semibold text-foreground">Siga-nos</span>
             <div className="flex justify-center space-x-4">
               <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary hover-scale" asChild>
-                <a href="mailto:ctdcontatooficial@outlook.com">
+                <a href="https://mail.google.com/mail/?view=cm&fs=1&to=ctdcontatooficial@outlook.com&su=Contato%20CTD&body=Olá,%20gostaria%20de%20entrar%20em%20contato%20sobre:" target="_blank" rel="noopener noreferrer">
                   <Mail className="h-5 w-5" />
                 </a>
               </Button>

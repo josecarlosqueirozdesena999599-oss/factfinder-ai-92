@@ -14,6 +14,7 @@ const VerifyNews = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [currentBanner, setCurrentBanner] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [impactStats, setImpactStats] = useState({
     total_verifications: 0,
     fake_news_detected: 0,
@@ -91,11 +92,23 @@ const VerifyNews = () => {
     setCurrentBanner((prev) => (prev - 1 + bannerContent.length) % bannerContent.length);
   };
 
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedImage(file);
+      setDescription(`Imagem selecionada: ${file.name}`);
+      toast({
+        title: "Imagem Selecionada",
+        description: "Agora clique em 'Verificar Informação' para analisar a imagem.",
+      });
+    }
+  };
+
   const handleVerification = async () => {
-    if (!description.trim()) {
+    if (!description.trim() && !selectedImage) {
       toast({
         title: "Erro",
-        description: "Por favor, insira uma descrição para verificar.",
+        description: "Por favor, insira uma descrição ou selecione uma imagem para verificar.",
         variant: "destructive"
       });
       return;
@@ -104,11 +117,17 @@ const VerifyNews = () => {
     setIsLoading(true);
     
     try {
+      const requestBody: any = {
+        content: description || "Análise de imagem enviada",
+        url: url.trim() || undefined
+      };
+
+      if (selectedImage) {
+        requestBody.imageFile = selectedImage;
+      }
+
       const { data, error } = await supabase.functions.invoke('verify-news', {
-        body: {
-          content: description,
-          url: url.trim() || undefined
-        }
+        body: requestBody
       });
 
       if (error) {
@@ -304,17 +323,26 @@ const VerifyNews = () => {
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-[80px] text-base resize-none pr-12"
                 />
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="image-upload"
+                />
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   className="absolute right-2 bottom-2 h-8 w-8 p-0 touch-manipulation"
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                  type="button"
                 >
                   <Upload className="h-5 w-5" />
                 </Button>
               </div>
               <Button
                 onClick={handleVerification}
-                disabled={isLoading || !description.trim()}
+                disabled={isLoading || (!description.trim() && !selectedImage)}
                 className="w-full h-12 text-base touch-manipulation"
               >
                 {isLoading ? (

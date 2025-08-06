@@ -19,18 +19,17 @@ const Contact = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate form submission
-    toast({
-      title: "Mensagem Enviada",
-      description: "Recebemos sua mensagem e responderemos em breve. Obrigado!",
-    });
+    // Create Gmail compose URL with form data
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=ctdcontatooficial@outlook.com&su=${encodeURIComponent(formData.subject)}&body=${encodeURIComponent(
+      `Nome: ${formData.name}\nE-mail: ${formData.email}\n\nMensagem:\n${formData.message}`
+    )}`;
     
-    // Reset form
-    setFormData({
-      name: "",
-      email: "",
-      subject: "",
-      message: ""
+    // Open Gmail in new tab
+    window.open(gmailUrl, '_blank');
+    
+    toast({
+      title: "Redirecionando para Gmail",
+      description: "Abrindo Gmail com sua mensagem preenchida. Complete o envio lá!",
     });
   };
 
@@ -140,7 +139,7 @@ const Contact = () => {
                   <Mail className="h-5 w-5 text-primary mt-1" />
                   <div>
                     <h3 className="font-semibold">E-mail</h3>
-                    <p className="text-muted-foreground">contato@ctd.com.br</p>
+                    <p className="text-muted-foreground">ctdcontatooficial@outlook.com</p>
                     <p className="text-sm text-muted-foreground">
                       Resposta em até 24 horas
                     </p>
